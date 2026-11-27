@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Погода в Тивате</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--y:#FFC400;--b:#123C79;--glass:rgba(255,255,255,.14);--line:rgba(255,255,255,.26);--t:#fff;--t2:rgba(255,255,255,.78)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif;color:var(--t);background:#2E4057;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+#sky{position:fixed;inset:0;z-index:-2;transition:background 1.6s ease}
+#fx{position:fixed;inset:0;z-index:-1;pointer-events:none}
+main{max-width:560px;margin:0 auto;padding:calc(18px + env(safe-area-inset-top)) 16px 40px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.place{font-weight:600;font-size:17px;opacity:.92}
+.langs button{background:none;border:1px solid var(--line);color:var(--t);border-radius:10px;padding:4px 8px;margin-left:4px;font-weight:600;font-size:12px;cursor:pointer}
+.langs button[aria-pressed=true]{background:var(--y);color:var(--b);border-color:var(--y)}
+.hero{text-align:center;padding:18px 0 22px}
+.now{font-size:96px;font-weight:200;line-height:1;letter-spacing:-2px}
+.cond{font-size:21px;font-weight:600;margin-top:4px}
+.hl{font-size:17px;color:var(--t2);margin-top:4px}
+.fact{display:inline-block;margin-top:10px;font-size:12px;color:var(--t2);border:1px solid var(--line);border-radius:999px;padding:4px 10px}
+.card{background:var(--glass);border:1px solid var(--line);border-radius:22px;padding:14px 16px;margin-bottom:12px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.card h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--t2);font-weight:600;margin-bottom:10px;display:flex;gap:6px;align-items:center}
+.warn{background:var(--y);color:var(--b);border:none;font-weight:700;font-size:15px}
+.hours{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.hours::-webkit-scrollbar{display:none}
+.h{min-width:54px;text-align:center;font-size:14px}
+.h .tt{font-weight:600;font-size:17px;margin-top:4px}
+.h .p{color:#9FD3FF;font-size:12px;height:14px}
+.h svg{width:30px;height:30px;margin-top:6px}
+.days .d{display:grid;grid-template-columns:58px 30px 38px 1fr 38px;align-items:center;gap:8px;padding:7px 0;border-top:1px solid rgba(255,255,255,.12);font-size:16px}
+.days .d:first-child{border-top:none}
+.days .d svg{width:28px;height:28px}
+.days .mn{color:var(--t2);text-align:right}
+.bar{height:5px;border-radius:3px;background:rgba(255,255,255,.18);position:relative}
+.bar i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,#7EC8FF,#FFC400)}
+.dp{font-size:11px;color:#9FD3FF;display:block}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid .card{margin:0;min-height:150px}
+.big{font-size:30px;font-weight:600}
+.sub{font-size:13px;color:var(--t2);margin-top:6px;line-height:1.35}
+.compass{width:86px;height:86px;float:right;margin-top:-4px}
+.models svg{width:100%;height:150px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--t2);margin-top:6px}
+.legend b{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+footer{font-size:11px;color:var(--t2);text-align:center;margin-top:18px;line-height:1.5}
+footer a{color:var(--t2)}
+.skeleton{opacity:.5}
+@media (prefers-reduced-motion:reduce){#fx{display:none}#sky{transition:none}}
+</style>
+</head>
+<body>
+<div id="sky"></div><canvas id="fx" aria-hidden="true"></canvas>
+<main id="app" aria-live="polite">
+  <header><div class="place" id="place">Тиват</div><div class="langs" role="group" aria-label="Language">
+    <button data-l="ru">RU</button><button data-l="me">ME</button><button data-l="en">EN</button></div></header>
+  <section class="hero skeleton"><div class="now">—°</div><div class="cond">…</div></section>
+</main>
+<script>
+const I18N={
+ ru:{place:'Тиват',hourly:'Почасовой прогноз',h48:'48 часов',now:'Сейчас',days:'Прогноз на 7 дней',wind:'Ветер',rain:'Осадки',sea:'Море',sun:'Солнце',hum:'Влажность',uv:'УФ-индекс',models:'Модели',
+  today:'Сегодня',hi:'макс.',lo:'мин.',kmh:'км/ч',mm:'мм',gust:'порывы',fact:'Факт, аэропорт Тиват',spread:'Модели расходятся на',agree:'Модели сходятся',
+  sunrise:'восход',sunset:'закат',daylen:'световой день',bay:'Тиватский залив',wave:'волна',prob:'вероятность',updated:'Обновлено',calm:'слабый',
+  wd:['Вс','Пн','Вт','Ср','Чт','Пт','Сб'],dirs:['С','СВ','В','ЮВ','Ю','ЮЗ','З','СЗ'],local:['трамонтана','бура','леванат','юго','оштро','лебич','пуленат','маэстраль'],
+  warn:{rain:'Сильные осадки',gust:'Сильные порывы ветра',storm:'Гроза'},uvlv:['низкий','умеренный','высокий','очень высокий','экстремальный'],
+  src:'Данные: Open-Meteo (ECMWF, ICON), MET Norway — CC BY 4.0; факт — METAR LYTV. Неофициальный прогноз; официальные предупреждения — <a href="https://www.meteo.co.me/" target="_blank">meteo.co.me</a>. Экстренно — 112.',
+  wmo:{0:'Ясно',1:'Преимущественно ясно',2:'Переменная облачность',3:'Пасмурно',45:'Туман',48:'Туман',51:'Морось',53:'Морось',55:'Морось',61:'Небольшой дождь',63:'Дождь',65:'Сильный дождь',80:'Кратковременный дождь',81:'Ливни',82:'Сильные ливни',95:'Гроза',96:'Гроза с градом',99:'Гроза с градом',71:'Снег',73:'Снег',75:'Сильный снег'}},
+ me:{place:'Tivat',hourly:'Po satima',h48:'48 sati',now:'Sada',days:'Prognoza za 7 dana',wind:'Vjetar',rain:'Padavine',sea:'More',sun:'Sunce',hum:'Vlažnost',uv:'UV indeks',models:'Modeli',
+  today:'Danas',hi:'maks.',lo:'min.',kmh:'km/h',mm:'mm',gust:'udari',fact:'Izmjereno, aerodrom Tivat',spread:'Modeli se razlikuju za',agree:'Modeli se slažu',
+  sunrise:'izlazak',sunset:'zalazak',daylen:'dužina dana',bay:'Tivatski zaliv',wave:'talas',prob:'vjerovatnoća',updated:'Ažurirano',calm:'slab',
+  wd:['Ned','Pon','Uto','Sri','Čet','Pet','Sub'],dirs:['S','SI','I','JI','J','JZ','Z','SZ'],local:['tramontana','bura','levanat','jugo','oštro','lebić','pulenat','maestral'],
+  warn:{rain:'Obilne padavine',gust:'Jaki udari vjetra',storm:'Grmljavina'},uvlv:['nizak','umjeren','visok','vrlo visok','ekstreman'],
+  src:'Podaci: Open-Meteo (ECMWF, ICON), MET Norway — CC BY 4.0; izmjereno — METAR LYTV. Nezvanična prognoza; zvanična upozorenja — <a href="https://www.meteo.co.me/" target="_blank">meteo.co.me</a>. Hitno — 112.',
+  wmo:{0:'Vedro',1:'Pretežno vedro',2:'Promjenljivo oblačno',3:'Oblačno',45:'Magla',48:'Magla',51:'Rosulja',53:'Rosulja',55:'Rosulja',61:'Slaba kiša',63:'Kiša',65:'Jaka kiša',80:'Kratkotrajna kiša',81:'Pljuskovi',82:'Jaki pljuskovi',95:'Grmljavina',96:'Grmljavina sa gradom',99:'Grmljavina sa gradom',71:'Snijeg',73:'Snijeg',75:'Jak snijeg'}},
+ en:{place:'Tivat',hourly:'Hourly forecast',h48:'48 hours',now:'Now',days:'7-day forecast',wind:'Wind',rain:'Rain',sea:'Sea',sun:'Sun',hum:'Humidity',uv:'UV index',models:'Models',
+  today:'Today',hi:'high',lo:'low',kmh:'km/h',mm:'mm',gust:'gusts',fact:'Measured at Tivat airport',spread:'Models differ by',agree:'Models agree',
+  sunrise:'sunrise',sunset:'sunset',daylen:'daylight',bay:'Tivat Bay',wave:'waves',prob:'chance',updated:'Updated',calm:'light',
+  wd:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],dirs:['N','NE','E','SE','S','SW','W','NW'],local:['tramontana','bora','levanat','jugo','oštro','lebić','pulenat','maestral'],
+  warn:{rain:'Heavy rain',gust:'Strong wind gusts',storm:'Thunderstorm'},uvlv:['low','moderate','high','very high','extreme'],
+  src:'Data: Open-Meteo (ECMWF, ICON), MET Norway — CC BY 4.0; measured — METAR LYTV. Unofficial forecast; official warnings — <a href="https://www.meteo.co.me/" target="_blank">meteo.co.me</a>. Emergency — 112.',
+  wmo:{0:'Clear',1:'Mostly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Fog',51:'Drizzle',53:'Drizzle',55:'Drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',80:'Rain showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm, hail',99:'Thunderstorm, hail',71:'Snow',73:'Snow',75:'Heavy snow'}}};
+const tg=window.Telegram&&Telegram.WebApp; if(tg){tg.ready();tg.expand()}
+let lang=new URLSearchParams(location.search).get('lang')||(tg&&tg.initDataUnsafe&&tg.initDataUnsafe.user&&tg.initDataUnsafe.user.language_code)||navigator.language||'ru';
+lang=lang.startsWith('ru')?'ru':/^(sr|me|cnr|hr|bs)/.test(lang)?'me':lang.startsWith('en')?'en':'ru';
+const kind=c=>[95,96,99].includes(c)?'storm':c>=71&&c<=86&&![80,81,82].includes(c)?'snow':c>=51?'rain':[45,48].includes(c)?'fog':c===3?'cloud':c===2?'partly':'clear';
+const SKY={clear:['#2F7FD6','#8EC5F2'],partly:['#3D78B8','#9DB9D6'],cloud:['#56677E','#9AA8B8'],rain:['#2E4057','#6C7E93'],storm:['#1E2238','#4A4E77'],fog:['#7B8794','#BFC6CD'],snow:['#7D93B2','#D5DEEA'],night:['#0B1530','#27385C']};
+function ico(k,day=1){const s='stroke-linecap="round"',y='#FFC400',w='#fff',dr='#9FD3FF';
+ const sun=`<circle cx="24" cy="24" r="9" fill="${y}"/>`+[...Array(8)].map((_,i)=>{const a=i*Math.PI/4;return`<line x1="${24+Math.cos(a)*13}" y1="${24+Math.sin(a)*13}" x2="${24+Math.cos(a)*17}" y2="${24+Math.sin(a)*17}" stroke="${y}" stroke-width="3" ${s}/>`}).join('');
+ const moon=`<path d="M30 10a14 14 0 1 0 8 24A12 12 0 0 1 30 10z" fill="#F4E7B5"/>`;
+ const cl=(f=w,dx=0,dy=0)=>`<g transform="translate(${dx},${dy})" fill="${f}"><circle cx="17" cy="27" r="7"/><circle cx="25" cy="22" r="9"/><circle cx="33" cy="27" r="7"/><rect x="10" y="26" width="30" height="9" rx="4.5"/></g>`;
+ const rain=[16,24,32].map(x=>`<line x1="${x}" y1="38" x2="${x-3}" y2="45" stroke="${dr}" stroke-width="2.6" ${s}/>`).join('');
+ const bolt=`<path d="M25 34l-5 9h5l-2 7 8-11h-5l2-5z" fill="${y}"/>`;
+ const g={clear:day?sun:moon,partly:(day?`<g transform="translate(8,-6) scale(.75)">${sun}</g>`:`<g transform="translate(6,-6) scale(.7)">${moon}</g>`)+cl(w,0,4),cloud:cl(),rain:cl(w,0,-4)+rain,storm:cl('#D6DAE6',0,-4)+bolt,snow:cl(w,0,-4)+[16,24,32].map(x=>`<circle cx="${x}" cy="43" r="2.2" fill="${w}"/>`).join(''),fog:[18,26,34].map(y=>`<line x1="10" y1="${y}" x2="38" y2="${y}" stroke="${w}" stroke-width="3" ${s}/>`).join('')};
+ return`<svg viewBox="0 0 48 48" role="img" aria-label="${k}">${g[k]||g.cloud}</svg>`}
+function fx(k,night){const c=document.getElementById('fx'),x=c.getContext('2d');let W,H,parts=[];
+ function rs(){W=c.width=innerWidth*devicePixelRatio;H=c.height=innerHeight*devicePixelRatio}rs();addEventListener('resize',rs);
+ const n=k==='storm'?140:k==='rain'?100:k==='snow'?80:night?90:k==='cloud'||k==='partly'?6:0;
+ for(let i=0;i<n;i++)parts.push({x:Math.random()*W,y:Math.random()*H,v:k==='snow'?.6+Math.random():6+Math.random()*6,l:10+Math.random()*14,r:Math.random()*2+.5,a:Math.random()});
+ let flash=0;
+ (function loop(){x.clearRect(0,0,W,H);
+  if(k==='rain'||k==='storm'){x.strokeStyle='rgba(180,210,255,.35)';x.lineWidth=1.2*devicePixelRatio;for(const p of parts){x.beginPath();x.moveTo(p.x,p.y);x.lineTo(p.x-2,p.y+p.l*devicePixelRatio);x.stroke();p.y+=p.v*devicePixelRatio;if(p.y>H){p.y=-20;p.x=Math.random()*W}}
+   if(k==='storm'){if(Math.random()<.003)flash=1;if(flash>0){x.fillStyle=`rgba(255,255,255,${flash*.35})`;x.fillRect(0,0,W,H);flash-=.05}}}
+  else if(k==='snow'){x.fillStyle='rgba(255,255,255,.8)';for(const p of parts){x.beginPath();x.arc(p.x,p.y,p.r*devicePixelRatio,0,7);x.fill();p.y+=p.v;p.x+=Math.sin(p.y/40);if(p.y>H){p.y=-5;p.x=Math.random()*W}}}
+  else if(night&&(k==='clear'||k==='partly')){for(const p of parts){p.a+=.01;x.fillStyle=`rgba(255,255,255,${.3+.5*Math.abs(Math.sin(p.a))})`;x.fillRect(p.x,p.y*.6,p.r*devicePixelRatio,p.r*devicePixelRatio)}}
+  else if(k==='cloud'||k==='partly'){x.fillStyle='rgba(255,255,255,.06)';for(const p of parts){x.beginPath();x.ellipse(p.x,p.y*.5,180*devicePixelRatio,60*devicePixelRatio,0,0,7);x.fill();p.x+=.15*devicePixelRatio;if(p.x>W+300)p.x=-300}}
+  requestAnimationFrame(loop)})()}
+const r=v=>v==null?'—':Math.round(v);
+function compass(deg,spd){if(deg==null)return'';const a=(deg+180)%360;
+ return`<svg class="compass" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,.3)" stroke-width="2"/>
+ ${['N','E','S','W'].map((t,i)=>`<text x="${50+Math.sin(i*Math.PI/2)*34}" y="${54-Math.cos(i*Math.PI/2)*34}" font-size="11" fill="rgba(255,255,255,.7)" text-anchor="middle">${I18N[lang].dirs[i*2]}</text>`).join('')}
+ <g transform="rotate(${a} 50 50)"><path d="M50 18 L58 52 L50 46 L42 52 Z" fill="#FFC400"/></g><text x="50" y="58" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">${r(spd)}</text></svg>`}
+function modelsChart(H){const L=I18N[lang],keys=['ECMWF','ICON','MET Norway'],col={'ECMWF':'#FFC400','ICON':'#7EC8FF','MET Norway':'#fff'};
+ const pts=H.slice(0,48),vals=pts.flatMap(h=>keys.map(k=>h.models[k]).filter(v=>v!=null)),mn=Math.min(...vals)-1,mx=Math.max(...vals)+1;
+ const X=i=>8+i*(284/47),Y=v=>140-(v-mn)/(mx-mn)*120;
+ const lines=keys.map(k=>{const p=pts.map((h,i)=>h.models[k]==null?null:`${X(i)},${Y(h.models[k])}`).filter(Boolean);return p.length?`<polyline points="${p.join(' ')}" fill="none" stroke="${col[k]}" stroke-width="2" stroke-linejoin="round" opacity=".9"/>`:''}).join('');
+ const ticks=pts.map((h,i)=>h.t.endsWith('T00:00')?`<line x1="${X(i)}" y1="10" x2="${X(i)}" y2="140" stroke="rgba(255,255,255,.15)"/>`:'').join('');
+ return`<svg viewBox="0 0 300 150" role="img" aria-label="${L.models}">${ticks}${lines}<text x="4" y="14" font-size="10" fill="rgba(255,255,255,.7)">${r(mx-1)}°</text><text x="4" y="146" font-size="10" fill="rgba(255,255,255,.7)">${r(mn+1)}°</text></svg>
+ <div class="legend">${keys.map(k=>`<span><b style="background:${col[k]}"></b>${k}</span>`).join('')}</div>`}
+function render(D){const L=I18N[lang];document.documentElement.lang=lang==='me'?'sr-Latn':lang;document.title=L.place;
+ document.querySelectorAll('.langs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===lang));
+ const h0=D.hourly[0],d0=D.daily[0],night=!h0.day,k=kind(h0.code);
+ const sky=night&&['clear','partly'].includes(k)?SKY.night:SKY[k];document.getElementById('sky').style.background=`linear-gradient(180deg,${sky[0]},${sky[1]})`;
+ if(!matchMedia('(prefers-reduced-motion: reduce)').matches&&!window._fx){window._fx=1;fx(k,night)}
+ const now=D.obs&&D.obs.temp!=null?D.obs.temp:h0.temp;
+ const lw=(deg,spd)=>spd<10?L.calm:L.local[Math.round((deg||0)/45)%8];
+ const day=s=>{const d=new Date(s+'T12:00');return d};
+ const allMin=Math.min(...D.daily.map(d=>d.min)),allMax=Math.max(...D.daily.map(d=>d.max));
+ const spread=Object.values(d0.models_max).filter(v=>v!=null);const sp=spread.length>1?Math.round(Math.max(...spread)-Math.min(...spread)):0;
+ const uvl=v=>L.uvlv[v<3?0:v<6?1:v<8?2:v<11?3:4];
+ const dl=(a,b)=>{const[m1,s1]=a.split(':').map(Number),[m2,s2]=b.split(':').map(Number),t=(m2*60+s2)-(m1*60+s1);return`${Math.floor(t/60)}:${String(t%60).padStart(2,'0')}`};
+ document.getElementById('place').textContent=L.place;
+ document.getElementById('app').innerHTML=document.querySelector('header').outerHTML+`
+ <section class="hero"><div class="now">${r(now)}°</div><div class="cond">${L.wmo[h0.code]||''}</div>
+  <div class="hl">${L.hi} ${d0.max}° · ${L.lo} ${d0.min}°</div>${D.obs?`<span class="fact">${L.fact}: ${D.obs.temp}° · ${new Date(D.obs.time).toLocaleTimeString(lang==='en'?'en-GB':'ru',{hour:'2-digit',minute:'2-digit'})}</span>`:''}</section>
+ ${D.warnings.length?`<div class="card warn" role="alert">⚠ ${D.warnings.map(w=>L.warn[w.type]+(w.value?` — ${w.value} ${w.type==='rain'?L.mm:L.kmh}`:'')).join(' · ')}</div>`:''}
+ <div class="card"><h2>${L.hourly}</h2><div class="hours">${D.hourly.slice(0,24).map((h,i)=>`<div class="h"><div>${i?h.t.slice(11,13):L.now}</div>${ico(kind(h.code),h.day)}<div class="p">${h.pop>=20?h.pop+'%':''}</div><div class="tt">${r(h.temp)}°</div></div>`).join('')}</div></div>
+ <div class="card days"><h2>${L.days}</h2>${D.daily.slice(0,7).map((d,i)=>{const lo=(d.min-allMin)/(allMax-allMin)*100,hi=(d.max-allMin)/(allMax-allMin)*100;
+  return`<div class="d"><span>${i?L.wd[day(d.d).getDay()]:L.today}${d.pop>=30?`<span class="dp">${d.pop}%</span>`:''}</span>${ico(kind(d.code))}<span class="mn">${d.min}°</span><div class="bar"><i style="left:${lo}%;right:${100-hi}%"></i></div><span>${d.max}°</span></div>`}).join('')}</div>
+ <div class="grid">
+  <div class="card"><h2>${L.wind}</h2>${compass(h0.dir,h0.wind)}<div class="big" style="font-size:22px">${lw(h0.dir,h0.wind)}</div><div class="sub">${L.dirs[Math.round((h0.dir||0)/45)%8]} · ${r(h0.wind)} ${L.kmh}<br>${L.gust} ${r(h0.gust)} ${L.kmh}</div></div>
+  <div class="card"><h2>${L.rain}</h2><div class="big">${d0.rain} ${L.mm}</div><div class="sub">${L.prob} ${d0.pop??'—'}%</div></div>
+  <div class="card"><h2>${L.sea}</h2><div class="big">${D.sea!=null?(lang==='en'?D.sea:String(D.sea).replace('.',','))+'°':'—'}</div><div class="sub">${L.bay}${D.wave!=null?`<br>${L.wave} ${D.wave} m`:''}</div></div>
+  <div class="card"><h2>${L.sun}</h2><div class="big" style="font-size:22px">↑ ${d0.sunrise}<br>↓ ${d0.sunset}</div><div class="sub">${L.daylen} ${dl(d0.sunrise,d0.sunset)}</div></div>
+  <div class="card"><h2>${L.hum}</h2><div class="big">${r(h0.hum)}%</div><div class="sub">${D.obs&&D.obs.pressure?D.obs.pressure+' hPa':''}</div></div>
+  <div class="card"><h2>${L.uv}</h2><div class="big">${d0.uv!=null?Math.round(d0.uv):'—'}</div><div class="sub">${d0.uv!=null?uvl(d0.uv):''}</div></div>
+ </div>
+ <div class="card models" style="margin-top:12px"><h2>${L.models} · ${L.h48}</h2>${modelsChart(D.hourly)}<div class="sub">${sp>=2?`${L.spread} ${sp}°`:L.agree}</div></div>
+ <footer>${L.updated}: ${new Date(D.updated).toLocaleString(lang==='en'?'en-GB':'ru',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}<br>${L.src}<br>«Тиват, внимание!» · «Tivat, pažnja!» · «Attention, Tivat!»</footer>`;
+ document.querySelectorAll('.langs button').forEach(b=>b.onclick=()=>{lang=b.dataset.l;render(D);tg&&tg.HapticFeedback&&tg.HapticFeedback.selectionChanged()});}
+fetch('weather.json?'+Date.now()).then(r=>r.json()).then(D=>{render(D);localStorage.setItem('tivat_w',JSON.stringify(D))})
+ .catch(()=>{const c=localStorage.getItem('tivat_w');if(c)render(JSON.parse(c))});
+</script>
+</body>
+</html>
